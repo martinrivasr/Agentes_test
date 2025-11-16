@@ -1,0 +1,49 @@
+---
+discover_trending_topics:
+  description: Research and identify current trending topics, hashtags, and discussions
+    relevant to the {industry} industry. Search for viral content, emerging trends,
+    industry news, and popular conversations that could inform content creation. Focus
+    on topics that are gaining traction on social media platforms and have high engagement
+    potential.
+  expected_output: A comprehensive report listing 10-15 trending topics relevant to
+    {industry}, including specific hashtags, key discussion points, engagement metrics,
+    and recommendations for content angles. Include source links and trending scores.
+  agent: social_media_content_creator
+analyze_industry_engagement_patterns:
+  description: Research and analyze social media engagement patterns specific to the
+    {industry} industry. Investigate optimal posting times, peak engagement hours,
+    audience activity patterns, and content performance metrics. Study successful
+    {industry} brands' social media strategies and identify best practices for engagement
+    timing and frequency.
+  expected_output: A comprehensive analytics report detailing optimal posting times
+    for each platform (Twitter/X, LinkedIn, Instagram, Facebook), audience engagement
+    patterns, recommended posting frequency, peak activity hours, and industry-specific
+    engagement benchmarks.
+  agent: social_media_analytics_specialist
+generate_content_ideas:
+  description: Based on the trending topics research, create 20 specific social media
+    content ideas for {industry}. Each idea should include the post text, suggested
+    platform (Twitter/X, LinkedIn, Instagram, Facebook), recommended hashtags, optimal
+    post format (text, image, video, carousel), and target audience. Ensure content
+    ideas are diverse, engaging, and aligned with different stages of the customer
+    journey.
+  expected_output: 'A detailed list of 20 social media content ideas with: post text/captions,
+    platform recommendations, hashtag suggestions, content format, target audience,
+    and engagement tactics. Include content calendar timing suggestions.'
+  agent: social_media_content_creator
+  context:
+  - discover_trending_topics
+create_publishing_schedule:
+  description: Develop a comprehensive 4-week social media publishing schedule for
+    {industry} that incorporates the content ideas and optimal posting times. Create
+    a detailed calendar that specifies exact posting times, platforms, content pieces,
+    and any cross-platform coordination. Include backup content and alternative posting
+    strategies.
+  expected_output: A complete 4-week social media publishing schedule in calendar
+    format, including specific dates and times, platform assignments, content mapping,
+    posting frequency recommendations, and scheduling guidelines. Include instructions
+    for social media management tools and automation setup.
+  agent: social_media_scheduler
+  context:
+  - generate_content_ideas
+  - analyze_industry_engagement_patterns

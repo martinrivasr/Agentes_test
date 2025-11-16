@@ -1,0 +1,551 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>CrewAI Enterprise – Settings · Account (Mock)</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <!-- Si quieres usar tus propios estilos, puedes enlazar aquí tu CSS -->
+  <!-- <link rel="stylesheet" href="styles-mockup.css"> -->
+  <style>
+    /* Estilos básicos para el mock (puedes borrarlos y usar los tuyos) */
+    body {
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      margin: 0;
+      background: #f8fafc;
+      color: #0f172a;
+    }
+    .layout {
+      min-height: 100vh;
+      display: flex;
+    }
+    aside {
+      width: 260px;
+      background: #ffffff;
+      border-right: 1px solid #e2e8f0;
+      padding: 1.5rem 1.25rem;
+      box-sizing: border-box;
+    }
+    .logo {
+      font-weight: 700;
+      font-size: 1.1rem;
+      margin-bottom: 1.5rem;
+    }
+    .nav-section-title {
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: #94a3b8;
+      margin-bottom: 0.5rem;
+    }
+    .nav-item {
+      font-size: 0.9rem;
+      padding: 0.45rem 0.75rem;
+      border-radius: 0.5rem;
+      color: #475569;
+      display: block;
+      text-decoration: none;
+      margin-bottom: 0.1rem;
+    }
+    .nav-item:hover {
+      background: #f1f5f9;
+      color: #0f172a;
+    }
+    .nav-item.active {
+      background: #0f172a;
+      color: #f9fafb;
+    }
+    main {
+      flex: 1;
+      padding: 1.75rem 2rem;
+      box-sizing: border-box;
+    }
+    .page-header {
+      margin-bottom: 1.5rem;
+    }
+    .page-header h1 {
+      font-size: 1.25rem;
+      font-weight: 600;
+      margin: 0 0 0.25rem;
+    }
+    .page-header p {
+      margin: 0;
+      font-size: 0.9rem;
+      color: #64748b;
+    }
+    .settings-tabs {
+      border-bottom: 1px solid #e2e8f0;
+      margin-bottom: 1.25rem;
+    }
+    .settings-tabs ul {
+      display: flex;
+      gap: 0.75rem;
+      list-style: none;
+      padding: 0;
+      margin: 0;
+      overflow-x: auto;
+    }
+    .settings-tabs a {
+      display: inline-block;
+      padding: 0.6rem 0.9rem;
+      font-size: 0.85rem;
+      text-decoration: none;
+      color: #64748b;
+      border-bottom: 2px solid transparent;
+      white-space: nowrap;
+    }
+    .settings-tabs a:hover {
+      color: #0f172a;
+      border-bottom-color: #cbd5f5;
+    }
+    .settings-tabs a.active {
+      color: #0f172a;
+      font-weight: 600;
+      border-bottom-color: #0f172a;
+    }
+    .card {
+      background: #ffffff;
+      border-radius: 0.75rem;
+      border: 1px solid #e2e8f0;
+      padding: 1.25rem 1.5rem;
+      margin-bottom: 1rem;
+      box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+    }
+    .card-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 0.75rem;
+    }
+    .card-title-group {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+    .icon-circle {
+      width: 2rem;
+      height: 2rem;
+      border-radius: 0.75rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: #eff6ff;
+      color: #1d4ed8;
+      font-size: 0.9rem;
+    }
+    .card-title {
+      font-size: 1rem;
+      font-weight: 600;
+      margin: 0;
+    }
+    .card-subtitle {
+      font-size: 0.85rem;
+      color: #64748b;
+      margin: 0;
+    }
+    .card-body {
+      font-size: 0.9rem;
+      color: #475569;
+    }
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0.5rem 0.9rem;
+      border-radius: 0.5rem;
+      font-size: 0.85rem;
+      font-weight: 500;
+      border: 1px solid transparent;
+      cursor: pointer;
+      background: #0f172a;
+      color: #f9fafb;
+    }
+    .btn:hover {
+      background: #020617;
+    }
+    .btn-outline {
+      background: #ffffff;
+      color: #0f172a;
+      border-color: #cbd5e1;
+    }
+    .btn-outline:hover {
+      background: #f8fafc;
+    }
+    .badge-danger {
+      font-size: 0.75rem;
+      padding: 0.15rem 0.45rem;
+      border-radius: 999px;
+      background: #fef2f2;
+      color: #b91c1c;
+      border: 1px solid #fecaca;
+    }
+    .info-box {
+      border-radius: 0.75rem;
+      border: 1px solid #bfdbfe;
+      background: #eff6ff;
+      padding: 0.85rem 1rem;
+      font-size: 0.85rem;
+      display: flex;
+      gap: 0.75rem;
+      margin-bottom: 0.8rem;
+    }
+    .info-box-icon {
+      margin-top: 0.1rem;
+      font-size: 1.1rem;
+    }
+    .danger-card {
+      border-color: #fecaca;
+      background: #fef2f2;
+    }
+    .danger-card h3 {
+      margin: 0 0 0.3rem;
+      font-size: 0.95rem;
+      font-weight: 600;
+      color: #b91c1c;
+    }
+    .danger-card p {
+      margin: 0;
+      font-size: 0.85rem;
+      color: #7f1d1d;
+    }
+    .danger-actions {
+      margin-top: 0.75rem;
+      display: flex;
+      justify-content: flex-end;
+    }
+    .btn-danger {
+      background: #b91c1c;
+      border-color: #b91c1c;
+      color: #fef2f2;
+    }
+    .btn-danger:hover {
+      background: #991b1b;
+    }
+    /* Modal */
+    .modal-backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(15, 23, 42, 0.45);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 50;
+    }
+    .modal-backdrop.active {
+      display: flex;
+    }
+    .modal {
+      background: #ffffff;
+      border-radius: 0.75rem;
+      max-width: 480px;
+      width: 100%;
+      box-shadow: 0 20px 40px rgba(15, 23, 42, 0.25);
+      overflow: hidden;
+    }
+    .modal-header {
+      padding: 0.9rem 1rem;
+      border-bottom: 1px solid #e2e8f0;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .modal-title-group {
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+    }
+    .modal-title {
+      font-size: 0.98rem;
+      font-weight: 600;
+    }
+    .modal-body {
+      padding: 1rem 1.1rem 1.1rem;
+      font-size: 0.9rem;
+      color: #475569;
+      max-height: 70vh;
+      overflow-y: auto;
+    }
+    .modal-footer {
+      padding: 0.75rem 1.1rem;
+      border-top: 1px solid #e2e8f0;
+      display: flex;
+      justify-content: flex-end;
+      gap: 0.5rem;
+    }
+    .danger-badge-icon {
+      width: 2.3rem;
+      height: 2.3rem;
+      border-radius: 999px;
+      background: #fee2e2;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #b91c1c;
+      margin-right: 0.4rem;
+    }
+  </style>
+</head>
+<body>
+  <div class="layout">
+    <!-- Sidebar -->
+    <aside>
+      <div class="logo">
+        CrewAI <span style="font-weight:400; color:#64748b;">Enterprise</span>
+      </div>
+
+      <div class="nav-section">
+        <div class="nav-section-title">Main</div>
+        <a href="#" class="nav-item">Dashboard</a>
+        <a href="#" class="nav-item">Runs</a>
+        <a href="#" class="nav-item">Crew Studio</a>
+      </div>
+
+      <div class="nav-section" style="margin-top: 1.25rem;">
+        <div class="nav-section-title">Organization</div>
+        <a href="#" class="nav-item">Overview</a>
+        <a href="#" class="nav-item active">Settings</a>
+      </div>
+    </aside>
+
+    <!-- Main content -->
+    <main>
+      <header class="page-header">
+        <h1>Settings</h1>
+        <p>Manage your account settings, invite new members, and more.</p>
+      </header>
+
+      <!-- Settings Tabs -->
+      <nav class="settings-tabs">
+        <ul>
+          <li><a href="#">Members</a></li>
+          <li><a href="#">Roles</a></li>
+          <li><a href="#">Organization</a></li>
+          <li><a href="#">Crew Studio</a></li>
+          <li><a href="#">Billing</a></li>
+          <li><a href="#">Integrations</a></li>
+          <li><a href="#">Git Repositories</a></li>
+          <li><a href="#" class="active">Account</a></li>
+        </ul>
+      </nav>
+
+      <!-- Personal Access Token card -->
+      <section class="card">
+        <div class="card-header">
+          <div class="card-title-group">
+            <div class="icon-circle">🔑</div>
+            <div>
+              <h2 class="card-title">Personal Access Token</h2>
+              <p class="card-subtitle">
+                Create a personal access token for scripts or external tools to authenticate as your user.
+              </p>
+            </div>
+          </div>
+        </div>
+        <div class="card-body">
+          <p>
+            You don't have a personal access token yet. You can generate one to authenticate programmatically
+            without sharing your password.
+          </p>
+          <p style="margin-top: 0.5rem;">
+            Use it in CI/CD pipelines, internal tools or integrations that need to call CrewAI APIs on your
+            behalf. Treat it like a password and store it in a secure location (such as a secrets manager).
+          </p>
+          <div style="margin-top: 0.9rem;">
+            <button class="btn">Generate personal access token</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- Multi-Factor Authentication card -->
+      <section class="card">
+        <div class="card-header">
+          <div class="card-title-group">
+            <div class="icon-circle">🛡️</div>
+            <div>
+              <h2 class="card-title">Multi-Factor Authentication</h2>
+              <p class="card-subtitle">
+                Add an extra layer of security to your account using an authenticator app.
+              </p>
+            </div>
+          </div>
+        </div>
+        <div class="card-body">
+          <div class="info-box">
+            <div class="info-box-icon">ℹ️</div>
+            <div>
+              <strong>Multi-Factor Authentication is currently disabled.</strong>
+              <p style="margin: 0.15rem 0 0;">
+                We strongly recommend enabling MFA for your account, especially if you are an administrator
+                or have access to sensitive data. Once enabled, you will be asked for a 6-digit code from your
+                authenticator app when signing in.
+              </p>
+            </div>
+          </div>
+          <p style="margin-bottom: 0.75rem;">
+            You can use any TOTP-compatible authenticator app (e.g., Google Authenticator, 1Password,
+            Authy, etc.). During enrollment, you will scan a QR code, receive backup codes, and confirm a 6-digit
+            verification code.
+          </p>
+          <button class="btn" onclick="openModal('mfaModal')">Enable MFA</button>
+        </div>
+      </section>
+
+      <!-- Danger Zone / Delete Account -->
+      <section class="card danger-card">
+        <div class="card-header">
+          <div class="card-title-group">
+            <div class="danger-badge-icon">⚠️</div>
+            <div>
+              <h3>Delete Account</h3>
+              <p class="card-subtitle" style="color:#b91c1c;">
+                Permanently delete your user account and personal access.
+              </p>
+            </div>
+          </div>
+          <span class="badge-danger">Danger Zone</span>
+        </div>
+        <div class="card-body">
+          <p>
+            Deleting your account is a permanent action. This will remove your personal access and may revoke
+            any associated tokens or sessions. Some organization-level data may be retained for compliance
+            or billing reasons.
+          </p>
+          <div class="danger-actions">
+            <button class="btn btn-danger" onclick="openModal('deleteModal')">
+              Delete account
+            </button>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <!-- MFA Modal (mock) -->
+  <div class="modal-backdrop" id="mfaModal">
+    <div class="modal">
+      <div class="modal-header">
+        <div class="modal-title-group">
+          <div class="icon-circle" style="background:#fee2e2; color:#b91c1c;">🛡️</div>
+          <div class="modal-title">Enable Multi-Factor Authentication</div>
+        </div>
+        <button class="btn btn-outline" style="padding:0.25rem 0.6rem; font-size:0.75rem;" onclick="closeModal('mfaModal')">
+          ✕
+        </button>
+      </div>
+      <div class="modal-body">
+        <p>
+          Follow these steps to enable Multi-Factor Authentication (MFA) on your account. You will need an
+          authenticator app installed on your device (e.g., Google Authenticator, 1Password, Authy).
+        </p>
+
+        <h4 style="margin-top:0.9rem; margin-bottom:0.4rem; font-size:0.9rem;">Step 1 · Scan the QR Code</h4>
+        <p style="margin-top: 0;">
+          Scan the QR code below with your authenticator app. If you cannot scan it, you can enter the
+          secret key manually.
+        </p>
+        <div style="margin:0.6rem 0; padding:0.75rem; border-radius:0.75rem; border:1px dashed #cbd5e1; text-align:center; background:#f9fafb;">
+          <div style="height:120px; background:#e5e7eb; border-radius:0.75rem; margin-bottom:0.45rem;"></div>
+          <div style="font-size:0.8rem; color:#64748b;">(Mock QR Code placeholder)</div>
+        </div>
+        <p style="font-size:0.8rem; color:#64748b;">
+          Example (mock) secret: <code style="background:#e5e7eb; padding:0.1rem 0.25rem; border-radius:0.25rem;">JBSWY3DPEHPK3PXP</code>
+        </p>
+
+        <h4 style="margin-top:0.9rem; margin-bottom:0.4rem; font-size:0.9rem;">Step 2 · Save Backup Codes</h4>
+        <p style="margin-top: 0;">
+          Save these backup codes somewhere safe. You can use them if you lose access to your authenticator app.
+        </p>
+        <ul style="list-style: none; padding: 0; margin: 0.4rem 0 0;">
+          <li><code>1234-5678</code></li>
+          <li><code>2345-6789</code></li>
+          <li><code>3456-7890</code></li>
+        </ul>
+
+        <h4 style="margin-top:0.9rem; margin-bottom:0.4rem; font-size:0.9rem;">Step 3 · Enter Verification Code</h4>
+        <p style="margin-top: 0;">
+          Enter the 6-digit code from your authenticator app to complete MFA setup:
+        </p>
+        <label for="verification-code" style="display:block; font-size:0.85rem; font-weight:600; margin-bottom:0.25rem;">
+          Verification Code
+        </label>
+        <input
+          id="verification-code"
+          type="text"
+          maxlength="6"
+          pattern="[0-9]{6}"
+          placeholder="000000"
+          style="
+            width:100%;
+            text-align:center;
+            font-size:1.4rem;
+            letter-spacing:0.3em;
+            border-radius:0.75rem;
+            border:2px solid #cbd5e1;
+            padding:0.5rem 0.75rem;
+            box-sizing:border-box;
+          "
+        >
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-outline" onclick="closeModal('mfaModal')">Cancel</button>
+        <button class="btn">Enable MFA</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Delete Account Modal (mock) -->
+  <div class="modal-backdrop" id="deleteModal">
+    <div class="modal">
+      <div class="modal-header">
+        <div class="modal-title-group">
+          <div class="danger-badge-icon">⚠️</div>
+          <div class="modal-title">Are you sure you want to do this?</div>
+        </div>
+        <button class="btn btn-outline" style="padding:0.25rem 0.6rem; font-size:0.75rem;" onclick="closeModal('deleteModal')">
+          ✕
+        </button>
+      </div>
+      <div class="modal-body">
+        <p>
+          Deleting your account is a permanent action. This will revoke your personal access and may remove
+          associated tokens and sessions. Organization-level data may be retained if required for compliance
+          or billing purposes.
+        </p>
+        <p style="margin-top:0.6rem;">
+          To confirm, type <strong>DELETE</strong> in the field below and click <strong>Delete account</strong>.
+        </p>
+        <label for="delete-confirm" style="display:block; font-size:0.85rem; font-weight:600; margin:0.5rem 0 0.25rem;">
+          Confirmation
+        </label>
+        <input
+          id="delete-confirm"
+          type="text"
+          placeholder="DELETE"
+          style="
+            width:100%;
+            border-radius:0.5rem;
+            border:1px solid #cbd5e1;
+            padding:0.45rem 0.6rem;
+            font-size:0.9rem;
+            box-sizing:border-box;
+          "
+        >
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-outline" onclick="closeModal('deleteModal')">Cancel</button>
+        <button class="btn btn-danger">Delete account</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    function openModal(id) {
+      var el = document.getElementById(id);
+      if (el) el.classList.add('active');
+    }
+    function closeModal(id) {
+      var el = document.getElementById(id);
+      if (el) el.classList.remove('active');
+    }
+  </script>
+</body>
+</html>
