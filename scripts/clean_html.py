@@ -1,18 +1,18 @@
 #!/usr/bin/env python3
 """
 Script para limpiar archivos HTML capturados con SingleFile
-Remueve tracking scripts, consolida CSS, y mantiene todo el contenido visible
+MANTIENE la renderización exacta, SOLO remueve tracking y comentarios
 """
 
 import re
-from bs4 import BeautifulSoup
+from bs4 import BeautifulSoup, Comment
 import os
 import sys
 from pathlib import Path
 
 def clean_html_file(input_path, output_path):
     """
-    Limpia un archivo HTML individual
+    Limpia un archivo HTML individual SIN romper la renderización
     """
     print(f"Limpiando: {input_path}")
 
@@ -20,66 +20,48 @@ def clean_html_file(input_path, output_path):
     with open(input_path, 'r', encoding='utf-8') as f:
         html_content = f.read()
 
-    # Parse con BeautifulSoup
+    # Parse con BeautifulSoup - IMPORTANTE: usar 'html.parser' para mantener estructura
     soup = BeautifulSoup(html_content, 'html.parser')
 
-    # 1. Remover iframes de tracking
-    iframes_removed = 0
+    stats = {
+        'iframes': 0,
+        'comments': 0,
+        'canonical_links': 0,
+        'meta_tags': 0
+    }
+
+    # 1. Remover SOLO comentarios de SingleFile
+    comments = soup.find_all(string=lambda text: isinstance(text, Comment))
+    for comment in comments:
+        comment_text = str(comment).strip()
+        # Solo remover comentarios de SingleFile
+        if 'SingleFile' in comment_text or 'Page saved with' in comment_text or 'saved date:' in comment_text:
+            comment.extract()
+            stats['comments'] += 1
+
+    # 2. Remover iframes de tracking (HubSpot, Evernote, etc.)
     for iframe in soup.find_all('iframe'):
         iframe.decompose()
-        iframes_removed += 1
+        stats['iframes'] += 1
 
-    # 2. Remover atributos no deseados
-    unwanted_attrs = [
-        'data-evernote-id',
-        'data-wf-page',
-        'data-wf-site',
-        'data-wf-element-id',
-        'data-singlefile-element',
-        'data-singlefile-removed-hidden-element',
-        'data-singlefile-hidden-content'
-    ]
+    # 3. Remover/actualizar links canónicos externos
+    for link in soup.find_all('link', rel='canonical'):
+        href = link.get('href', '')
+        if href.startswith('http'):
+            link.decompose()
+            stats['canonical_links'] += 1
 
-    attrs_removed = 0
-    for tag in soup.find_all(True):
-        for attr in unwanted_attrs:
-            if tag.has_attr(attr):
-                del tag[attr]
-                attrs_removed += 1
+    # 4. Remover meta tags con URLs canónicas externas
+    for meta in soup.find_all('meta'):
+        if meta.get('name') == 'canonical' or meta.get('property') == 'og:url':
+            content = meta.get('content', '')
+            if content.startswith('http'):
+                meta.decompose()
+                stats['meta_tags'] += 1
 
-    # 3. Remover clase js-evernote-checked
-    classes_removed = 0
-    for tag in soup.find_all(class_='js-evernote-checked'):
-        if 'class' in tag.attrs:
-            tag['class'] = [c for c in tag['class'] if c != 'js-evernote-checked']
-            if not tag['class']:
-                del tag['class']
-            classes_removed += 1
-
-    # 4. Consolidar todos los bloques CSS en uno solo
-    css_blocks = []
-    style_tags = soup.find_all('style')
-
-    for style in style_tags:
-        if style.string:
-            css_blocks.append(style.string)
-        style.decompose()
-
-    # Crear un solo bloque de CSS en el head
-    if css_blocks and soup.head:
-        consolidated_style = soup.new_tag('style')
-        consolidated_style.string = '\n'.join(css_blocks)
-        soup.head.insert(0, consolidated_style)
-
-    # 5. Remover comentarios de SingleFile
-    comments = soup.find_all(string=lambda text: isinstance(text, type(soup.new_string(''))) and
-                                                   text.strip().startswith('<!--'))
-    for comment in comments:
-        if 'SingleFile' in str(comment) or 'Page saved with' in str(comment):
-            comment.extract()
-
-    # Formatear HTML
-    cleaned_html = soup.prettify()
+    # 5. IMPORTANTE: NO usar prettify() - usar str() para mantener formato original
+    # str(soup) mantiene la estructura HTML sin reformatear
+    cleaned_html = str(soup)
 
     # Guardar archivo limpio
     with open(output_path, 'w', encoding='utf-8') as f:
@@ -88,12 +70,12 @@ def clean_html_file(input_path, output_path):
     # Estadísticas
     original_size = os.path.getsize(input_path)
     cleaned_size = os.path.getsize(output_path)
-    reduction = ((original_size - cleaned_size) / original_size) * 100
+    reduction = ((original_size - cleaned_size) / original_size) * 100 if original_size > 0 else 0
 
-    print(f"  ✓ {iframes_removed} iframes removidos")
-    print(f"  ✓ {attrs_removed} atributos removidos")
-    print(f"  ✓ {classes_removed} clases removidas")
-    print(f"  ✓ {len(style_tags)} bloques CSS consolidados en 1")
+    print(f"  ✓ {stats['iframes']} iframes removidos")
+    print(f"  ✓ {stats['comments']} comentarios SingleFile removidos")
+    print(f"  ✓ {stats['canonical_links']} links canónicos removidos")
+    print(f"  ✓ {stats['meta_tags']} meta tags externos removidos")
     print(f"  ✓ Tamaño: {original_size/1024/1024:.2f}MB → {cleaned_size/1024/1024:.2f}MB ({reduction:.1f}% reducción)")
     print(f"  ✓ Guardado en: {output_path}\n")
 
@@ -148,7 +130,7 @@ if __name__ == "__main__":
     if len(sys.argv) > 2:
         output_dir = Path(sys.argv[2])
 
-    print("Script de Limpieza de HTML")
+    print("Script de Limpieza de HTML (PRESERVA RENDERIZACIÓN)")
     print("="*60)
     print(f"Directorio de entrada: {input_dir}")
     print(f"Directorio de salida:  {output_dir}")
