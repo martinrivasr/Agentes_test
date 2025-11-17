@@ -1,0 +1,1080 @@
+var __defProp = Object.defineProperty;
+var __defNormalProp = (obj, key, value) => key in obj ? __defProp(obj, key, { enumerable: true, configurable: true, writable: true, value }) : obj[key] = value;
+var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "symbol" ? key + "" : key, value);
+import { r as reactExports, j as jsxRuntimeExports, L as LoaderCircle, q as createRoot, R as React, s as Toaster } from "./toaster-C33V9DTF.js";
+import { Z as Zap, a1 as CircleCheck, a2 as formatTimeOffset, a3 as DynamicEventItem, W as Wrench, b as Clock, a4 as formatDuration, S as Sparkles, a5 as Brain, a6 as useTraceGuidance, c as useScrollToBottom, a7 as aggregateEvents, F as FileText, a8 as TraceGuidanceProvider, a9 as DynamicContentRenderer, M as MultipleSidebarsProvider, K as GuidanceProvider, X as GuidanceOverlay, Q as Run } from "./Run-D0x2KI2c.js";
+const transformFlowEvents = (events) => {
+  var _a, _b, _c;
+  const flowGroups = {};
+  const methodBoundaries = {};
+  const crewBoundaries = {};
+  const liteAgentBoundaries = {};
+  const taskBoundaries = {};
+  let inferredFlowName = null;
+  for (const event of events) {
+    const payload = event.data.payload;
+    if (payload.flow_name && !inferredFlowName) {
+      inferredFlowName = payload.flow_name;
+    }
+    if (payload.method_name) {
+      const methodName = payload.method_name;
+      if (!methodBoundaries[methodName]) {
+        methodBoundaries[methodName] = {};
+      }
+      if (event.type === "method_execution_started") {
+        methodBoundaries[methodName].start = event.timestamp;
+      } else if (event.type === "method_execution_completed" || event.type === "method_execution_finished") {
+        methodBoundaries[methodName].end = event.timestamp;
+      }
+    }
+    if (payload.crew_name || event.type.includes("crew_")) {
+      const crewName = payload.crew_name || "unknown_crew";
+      let methodName = void 0;
+      const eventTime = new Date(event.timestamp).getTime();
+      let latestMethodStart = 0;
+      for (const [methodKey, boundaries] of Object.entries(methodBoundaries)) {
+        if (boundaries.start) {
+          const startTime = new Date(boundaries.start).getTime();
+          const endTime = boundaries.end ? new Date(boundaries.end).getTime() : Infinity;
+          if (eventTime >= startTime && eventTime <= endTime && startTime > latestMethodStart) {
+            latestMethodStart = startTime;
+            methodName = methodKey;
+          }
+        }
+      }
+      const crewKey = `${methodName || "unknown"}:${crewName}`;
+      if (!crewBoundaries[crewKey]) {
+        crewBoundaries[crewKey] = { methodName };
+      }
+      if (event.type === "crew_kickoff_started" || event.type === "crew_started") {
+        crewBoundaries[crewKey].start = event.timestamp;
+      } else if (event.type === "crew_kickoff_completed" || event.type === "crew_execution_completed" || event.type === "crew_finished") {
+        crewBoundaries[crewKey].end = event.timestamp;
+      }
+    }
+    if (event.type === "task_started" || event.type === "task_completed" || event.type === "task_failed") {
+      let crewName = void 0;
+      let methodName = void 0;
+      const eventTime = new Date(event.timestamp).getTime();
+      let latestCrewStart = 0;
+      for (const [crewKey, boundaries] of Object.entries(crewBoundaries)) {
+        if (boundaries.start) {
+          const startTime = new Date(boundaries.start).getTime();
+          const endTime = boundaries.end ? new Date(boundaries.end).getTime() : Infinity;
+          if (eventTime >= startTime && eventTime <= endTime && startTime > latestCrewStart) {
+            latestCrewStart = startTime;
+            const [crewMethodName, crewNameFromKey] = crewKey.split(":");
+            crewName = crewNameFromKey;
+            methodName = crewMethodName;
+          }
+        }
+      }
+      const taskName = payload.task_name || payload.task_description || "unknown_task";
+      const taskKey = `${methodName || "unknown"}:${crewName || "unknown"}:${taskName}`;
+      if (!taskBoundaries[taskKey]) {
+        taskBoundaries[taskKey] = { crewName, methodName };
+      }
+      if (event.type === "task_started") {
+        taskBoundaries[taskKey].start = event.timestamp;
+      } else if (event.type === "task_completed" || event.type === "task_failed") {
+        taskBoundaries[taskKey].end = event.timestamp;
+      }
+    }
+    if (event.type === "lite_agent_execution_started" || event.type === "lite_agent_execution_completed") {
+      let methodName = void 0;
+      const eventTime = new Date(event.timestamp).getTime();
+      let latestMethodStart = 0;
+      for (const [methodKey, boundaries] of Object.entries(methodBoundaries)) {
+        if (boundaries.start) {
+          const startTime = new Date(boundaries.start).getTime();
+          const endTime = boundaries.end ? new Date(boundaries.end).getTime() : Infinity;
+          if (eventTime >= startTime && eventTime <= endTime && startTime > latestMethodStart) {
+            latestMethodStart = startTime;
+            methodName = methodKey;
+          }
+        }
+      }
+      const agentId = ((_a = payload.agent_info) == null ? void 0 : _a.id) || payload.agent_id;
+      const agentRole = payload.agent_role || ((_b = payload.agent_info) == null ? void 0 : _b.role);
+      const agentKey = `${methodName || "unknown"}:${agentRole || "unknown"}:${agentId || event.timestamp}`;
+      if (!liteAgentBoundaries[agentKey]) {
+        liteAgentBoundaries[agentKey] = { methodName };
+      }
+      if (event.type === "lite_agent_execution_started") {
+        liteAgentBoundaries[agentKey].start = event.timestamp;
+      } else if (event.type === "lite_agent_execution_completed") {
+        liteAgentBoundaries[agentKey].end = event.timestamp;
+      }
+    }
+  }
+  for (const event of events) {
+    const payload = event.data.payload;
+    const targetFlowName = payload.flow_name || inferredFlowName;
+    if (!targetFlowName) {
+      const hasRelevantContext = payload.method_name || payload.agent_role || ((_c = payload.agent_info) == null ? void 0 : _c.role) || event.type === "flow_started" || event.type === "flow_finished" || event.type === "flow_completed";
+      if (!hasRelevantContext) {
+        continue;
+      }
+    }
+    if (!targetFlowName) continue;
+    if (!flowGroups[targetFlowName]) {
+      flowGroups[targetFlowName] = {
+        flowName: targetFlowName,
+        events: [],
+        status: "running",
+        methods: [],
+        inputs: {}
+      };
+    }
+    const flowGroup = flowGroups[targetFlowName];
+    if (event.type === "flow_started" || event.type === "flow_completed" || event.type === "flow_finished") {
+      flowGroup.events.push(event);
+      if (event.type === "flow_started") {
+        flowGroup.status = "running";
+        flowGroup.startTime = event.timestamp;
+        flowGroup.inputs = payload.inputs || {};
+      } else if (event.type === "flow_completed" || event.type === "flow_finished") {
+        flowGroup.status = "completed";
+        flowGroup.endTime = event.timestamp;
+        if (flowGroup.startTime) {
+          flowGroup.duration = new Date(event.timestamp).getTime() - new Date(flowGroup.startTime).getTime();
+        }
+      }
+      continue;
+    }
+    let targetMethodName = payload.method_name;
+    if (!targetMethodName) {
+      const eventTime2 = new Date(event.timestamp).getTime();
+      for (const [methodName, boundaries] of Object.entries(methodBoundaries)) {
+        if (boundaries.start) {
+          const startTime = new Date(boundaries.start).getTime();
+          const endTime = boundaries.end ? new Date(boundaries.end).getTime() : Infinity;
+          if (eventTime2 >= startTime && eventTime2 <= endTime) {
+            targetMethodName = methodName;
+            break;
+          }
+        }
+      }
+    }
+    if (!targetMethodName) continue;
+    let methodGroup = flowGroup.methods.find(
+      (m) => m.methodName === targetMethodName
+    );
+    if (!methodGroup) {
+      methodGroup = {
+        methodName: targetMethodName,
+        events: [],
+        status: "running",
+        crews: [],
+        liteAgents: [],
+        flowName: targetFlowName
+      };
+      flowGroup.methods.push(methodGroup);
+    }
+    const eventTime = new Date(event.timestamp).getTime();
+    let assignedToNestedExecution = false;
+    for (const [crewKey, boundaries] of Object.entries(crewBoundaries)) {
+      const [methodName, crewName] = crewKey.split(":");
+      if (methodName === targetMethodName && boundaries.start) {
+        const startTime = new Date(boundaries.start).getTime();
+        const endTime = boundaries.end ? new Date(boundaries.end).getTime() : Infinity;
+        if (eventTime >= startTime && eventTime <= endTime) {
+          let crewGroup = methodGroup.crews.find(
+            (c) => c.crewName === crewName
+          );
+          if (!crewGroup) {
+            crewGroup = {
+              crewName,
+              events: [],
+              status: "running",
+              methodName: targetMethodName
+            };
+            methodGroup.crews.push(crewGroup);
+          }
+          const isCrewRelatedEvent = !event.type.includes("method_execution") && !event.type.includes("flow_");
+          if (isCrewRelatedEvent) {
+            crewGroup.events.push(event);
+          }
+          if (event.type === "crew_kickoff_started" || event.type === "crew_started") {
+            crewGroup.status = "running";
+            crewGroup.startTime = event.timestamp;
+          } else if (event.type === "crew_kickoff_completed" || event.type === "crew_execution_completed" || event.type === "crew_finished" || event.type === "crew_kickoff_failed") {
+            crewGroup.status = "completed";
+            crewGroup.endTime = event.timestamp;
+            if (crewGroup.startTime) {
+              crewGroup.duration = new Date(event.timestamp).getTime() - new Date(crewGroup.startTime).getTime();
+            }
+          }
+          assignedToNestedExecution = true;
+          break;
+        }
+      }
+    }
+    if (!assignedToNestedExecution) {
+      for (const [agentKey, boundaries] of Object.entries(
+        liteAgentBoundaries
+      )) {
+        const methodName = boundaries.methodName;
+        if (methodName === targetMethodName && boundaries.start) {
+          const startTime = new Date(boundaries.start).getTime();
+          const endTime = boundaries.end ? new Date(boundaries.end).getTime() : Infinity;
+          if (eventTime >= startTime && eventTime <= endTime) {
+            const keyParts = agentKey.split(":");
+            const boundaryAgentRole = keyParts[1] || "unknown";
+            const boundaryAgentId = keyParts[2] || "unknown";
+            let liteAgentGroup = methodGroup.liteAgents.find(
+              (la) => la.agentRole === boundaryAgentRole && la.agentId === boundaryAgentId
+            );
+            if (!liteAgentGroup) {
+              liteAgentGroup = {
+                agentRole: boundaryAgentRole,
+                agentId: boundaryAgentId,
+                events: [],
+                status: "running",
+                methodName: targetMethodName
+              };
+              methodGroup.liteAgents.push(liteAgentGroup);
+            }
+            liteAgentGroup.events.push(event);
+            if (event.type === "lite_agent_execution_started") {
+              liteAgentGroup.status = "running";
+              liteAgentGroup.startTime = event.timestamp;
+            } else if (event.type === "lite_agent_execution_completed") {
+              liteAgentGroup.status = "completed";
+              liteAgentGroup.endTime = event.timestamp;
+              if (liteAgentGroup.startTime) {
+                liteAgentGroup.duration = new Date(event.timestamp).getTime() - new Date(liteAgentGroup.startTime).getTime();
+              }
+            }
+            assignedToNestedExecution = true;
+            break;
+          }
+        }
+      }
+    }
+    if (!assignedToNestedExecution) {
+      methodGroup.events.push(event);
+      if (event.type === "method_execution_started") {
+        methodGroup.status = "running";
+        methodGroup.startTime = event.timestamp;
+      } else if (event.type === "method_execution_completed" || event.type === "method_execution_finished") {
+        methodGroup.status = "completed";
+        methodGroup.endTime = event.timestamp;
+        if (methodGroup.startTime) {
+          methodGroup.duration = new Date(event.timestamp).getTime() - new Date(methodGroup.startTime).getTime();
+        }
+      }
+    }
+  }
+  Object.values(flowGroups).forEach((flowGroup) => {
+    flowGroup.methods.forEach((methodGroup) => {
+      methodGroup.crews.forEach((crewGroup) => {
+        if (crewGroup.startTime && !crewGroup.duration && crewGroup.events.length > 0) {
+          const lastEvent = crewGroup.events[crewGroup.events.length - 1];
+          crewGroup.endTime = lastEvent.timestamp;
+          crewGroup.duration = new Date(lastEvent.timestamp).getTime() - new Date(crewGroup.startTime).getTime();
+        }
+      });
+    });
+  });
+  return Object.values(flowGroups);
+};
+const eventFilter = (event) => {
+  return event.type !== "flow_started" && event.type !== "method_execution_started" && event.type !== "lite_agent_execution_started" && event.type !== "lite_agent_execution_completed" && event.type !== "crew_kickoff_started" && event.type !== "crew_kickoff_completed" && event.type !== "crew_execution_started" && event.type !== "crew_execution_completed" && event.type !== "agent_execution_started" && event.type !== "agent_execution_completed";
+};
+const CrewSection = ({
+  crewGroup,
+  selectedEvent,
+  onEventSelect,
+  isExpanded,
+  onToggleExpanded
+}) => {
+  const status = crewGroup.status;
+  const statusColor = status === "running" ? "text-indigo-500" : status === "completed" ? "text-green-500" : "text-gray-300";
+  return /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "border-gray-100 ml-4", children: [
+    /* @__PURE__ */ jsxRuntimeExports.jsx(
+      "div",
+      {
+        className: "p-2 cursor-pointer flex items-center justify-between\n                   hover:bg-gray-50 transition-colors",
+        onClick: () => onToggleExpanded(),
+        children: /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center gap-2", children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-xs text-gray-400 w-3 text-center", children: isExpanded ? "▼" : "▶" }),
+          /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center gap-2", children: [
+            /* @__PURE__ */ jsxRuntimeExports.jsx(Sparkles, { className: `w-3 h-3 ${statusColor}` }),
+            /* @__PURE__ */ jsxRuntimeExports.jsx("div", { children: /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "text-xs font-medium text-gray-900", children: crewGroup.crewName }) })
+          ] })
+        ] })
+      }
+    ),
+    isExpanded && /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "pl-0 pr-2 pb-1 space-y-1", children: crewGroup.events.filter(eventFilter).map((event, index) => /* @__PURE__ */ jsxRuntimeExports.jsx(
+      DynamicEventItem,
+      {
+        event,
+        isSelected: selectedEvent === event,
+        onClick: () => onEventSelect(event),
+        baseTime: crewGroup.startTime,
+        indent: 2
+      },
+      `${event.timestamp}-${index}`
+    )) })
+  ] });
+};
+const LiteAgentSection = ({
+  liteAgentGroup,
+  selectedEvent,
+  onEventSelect,
+  isExpanded,
+  onToggleExpanded,
+  executionStartTime
+}) => {
+  const status = liteAgentGroup.status;
+  const statusColor = status === "running" ? "text-indigo-500" : status === "completed" ? "text-green-500" : "text-gray-300";
+  return /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "border-gray-100 ml-4", children: [
+    /* @__PURE__ */ jsxRuntimeExports.jsxs(
+      "div",
+      {
+        className: "p-2 cursor-pointer flex items-center justify-between\n                   hover:bg-gray-50 transition-colors",
+        onClick: () => onToggleExpanded(),
+        children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center gap-2", children: [
+            /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-xs text-gray-400 w-3 text-center", children: isExpanded ? "▼" : "▶" }),
+            /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center gap-2", children: [
+              /* @__PURE__ */ jsxRuntimeExports.jsx(Brain, { className: `w-3 h-3 ${statusColor}` }),
+              /* @__PURE__ */ jsxRuntimeExports.jsx("div", { children: /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "text-xs font-medium text-gray-900", children: liteAgentGroup.agentRole }) })
+            ] })
+          ] }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "flex items-center gap-2", children: executionStartTime && liteAgentGroup.startTime && /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: "text-xs text-gray-500", children: [
+            "+",
+            formatTimeOffset(executionStartTime, liteAgentGroup.startTime)
+          ] }) })
+        ]
+      }
+    ),
+    isExpanded && /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "pl-0 pr-2 pb-1 space-y-1", children: liteAgentGroup.events.filter(eventFilter).map((event, index) => /* @__PURE__ */ jsxRuntimeExports.jsx(
+      DynamicEventItem,
+      {
+        event,
+        isSelected: selectedEvent === event,
+        onClick: () => onEventSelect(event),
+        baseTime: liteAgentGroup.startTime,
+        indent: 3
+      },
+      `${event.timestamp}-${index}`
+    )) })
+  ] });
+};
+const MethodSection = ({
+  methodGroup,
+  selectedEvent,
+  onEventSelect,
+  isExpanded,
+  onToggleExpanded,
+  executionStartTime,
+  expandedCrews,
+  onToggleCrewExpanded,
+  expandedLiteAgents,
+  onToggleLiteAgentExpanded,
+  expandedAgents,
+  onToggleAgentExpanded,
+  expandedTasks,
+  onToggleTaskExpanded
+}) => {
+  const status = methodGroup.status;
+  const statusColor = status === "running" ? "text-indigo-500" : status === "completed" ? "text-green-500" : "text-gray-300";
+  return /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "border border-gray-100 ml-4", children: [
+    /* @__PURE__ */ jsxRuntimeExports.jsxs(
+      "div",
+      {
+        className: "p-2 cursor-pointer flex items-center justify-between\n                   hover:bg-gray-50 transition-colors",
+        onClick: () => onToggleExpanded(),
+        children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center gap-2", children: [
+            /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-xs text-gray-400 w-3 text-center", children: isExpanded ? "▼" : "▶" }),
+            /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center gap-2", children: [
+              /* @__PURE__ */ jsxRuntimeExports.jsx(Wrench, { className: `w-3 h-3 ${statusColor}` }),
+              /* @__PURE__ */ jsxRuntimeExports.jsx("div", { children: /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "text-xs font-medium text-gray-900", children: methodGroup.methodName }) })
+            ] })
+          ] }),
+          /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center gap-2", children: [
+            methodGroup.duration != void 0 && methodGroup.duration > 0 && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center gap-1 text-xs text-gray-500", children: [
+              /* @__PURE__ */ jsxRuntimeExports.jsx(Clock, { className: "w-3 h-3" }),
+              /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: formatDuration(methodGroup.duration.toString()) })
+            ] }),
+            executionStartTime && methodGroup.startTime && /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: "text-xs text-gray-500", children: [
+              "+",
+              formatTimeOffset(executionStartTime, methodGroup.startTime)
+            ] })
+          ] })
+        ]
+      }
+    ),
+    isExpanded && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "pl-0 pr-2 pb-1 space-y-1", children: [
+      methodGroup.crews.map((crewGroup) => {
+        const crewKey = `${methodGroup.methodName}:${crewGroup.crewName}`;
+        return /* @__PURE__ */ jsxRuntimeExports.jsx(
+          CrewSection,
+          {
+            crewGroup,
+            selectedEvent,
+            onEventSelect,
+            isExpanded: expandedCrews.has(crewKey),
+            onToggleExpanded: () => onToggleCrewExpanded(crewKey),
+            executionStartTime,
+            expandedAgents,
+            onToggleAgentExpanded,
+            expandedTasks,
+            onToggleTaskExpanded
+          },
+          crewKey
+        );
+      }),
+      methodGroup.liteAgents.map((liteAgentGroup) => {
+        const liteAgentKey = `${liteAgentGroup.agentRole}:${liteAgentGroup.agentId}`;
+        return /* @__PURE__ */ jsxRuntimeExports.jsx(
+          LiteAgentSection,
+          {
+            liteAgentGroup,
+            selectedEvent,
+            onEventSelect,
+            isExpanded: expandedLiteAgents.has(liteAgentKey),
+            onToggleExpanded: () => onToggleLiteAgentExpanded(liteAgentKey),
+            executionStartTime,
+            expandedTasks,
+            onToggleTaskExpanded
+          },
+          liteAgentKey
+        );
+      }),
+      methodGroup.events.filter(eventFilter).map((event, index) => {
+        if (event.type === "method_execution_finished" || event.type === "method_execution_completed") {
+          return /* @__PURE__ */ jsxRuntimeExports.jsx(
+            "div",
+            {
+              className: `cursor-pointer transition-colors p-1.5 rounded text-xs ${selectedEvent === event ? "bg-green-100 border border-green-300" : "bg-green-50 border border-green-100 hover:bg-green-100"}`,
+              onClick: () => onEventSelect(event),
+              children: /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center justify-between", children: [
+                /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center gap-1", children: [
+                  /* @__PURE__ */ jsxRuntimeExports.jsx(CircleCheck, { className: "w-2.5 h-2.5 text-green-500" }),
+                  /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "font-medium text-green-700", children: "Method Finished" })
+                ] }),
+                methodGroup.startTime && /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: "text-xs text-green-600", children: [
+                  "+",
+                  formatTimeOffset(
+                    methodGroup.startTime,
+                    event.timestamp
+                  )
+                ] })
+              ] })
+            },
+            `${event.timestamp}-${index}`
+          );
+        }
+        return /* @__PURE__ */ jsxRuntimeExports.jsx(
+          DynamicEventItem,
+          {
+            event,
+            isSelected: selectedEvent === event,
+            onClick: () => onEventSelect(event),
+            baseTime: methodGroup.startTime,
+            indent: 2
+          },
+          `${event.timestamp}-${index}`
+        );
+      })
+    ] })
+  ] });
+};
+const FlowTimeline = ({
+  flowGroup,
+  selectedEvent,
+  onEventSelect,
+  isExpanded,
+  onToggleExpanded,
+  executionStartTime,
+  isEphemeralTrace
+}) => {
+  const [expandedMethods, setExpandedMethods] = reactExports.useState(
+    /* @__PURE__ */ new Set()
+  );
+  const [expandedCrews, setExpandedCrews] = reactExports.useState(/* @__PURE__ */ new Set());
+  const [expandedLiteAgents, setExpandedLiteAgents] = reactExports.useState(
+    /* @__PURE__ */ new Set()
+  );
+  const [expandedAgents, setExpandedAgents] = reactExports.useState(/* @__PURE__ */ new Set());
+  const [expandedTasks, setExpandedTasks] = reactExports.useState(/* @__PURE__ */ new Set());
+  reactExports.useEffect(() => {
+    if (isEphemeralTrace) {
+      const allMethods = new Set(
+        flowGroup.methods.map((method) => method.methodName)
+      );
+      setExpandedMethods(allMethods);
+      const allCrews = /* @__PURE__ */ new Set();
+      flowGroup.methods.forEach((method) => {
+        method.crews.forEach((crew) => {
+          allCrews.add(`${method.methodName}:${crew.crewName}`);
+        });
+      });
+      setExpandedCrews(allCrews);
+      const allLiteAgents = /* @__PURE__ */ new Set();
+      flowGroup.methods.forEach((method) => {
+        method.liteAgents.forEach((liteAgent) => {
+          allLiteAgents.add(`${liteAgent.agentRole}:${liteAgent.agentId}`);
+        });
+      });
+      setExpandedLiteAgents(allLiteAgents);
+    }
+  }, [isEphemeralTrace, flowGroup]);
+  const toggleMethodExpanded = (methodName) => {
+    const newExpanded = new Set(expandedMethods);
+    if (newExpanded.has(methodName)) {
+      newExpanded.delete(methodName);
+    } else {
+      newExpanded.add(methodName);
+    }
+    setExpandedMethods(newExpanded);
+  };
+  const toggleCrewExpanded = (crewKey) => {
+    const newExpanded = new Set(expandedCrews);
+    if (newExpanded.has(crewKey)) {
+      newExpanded.delete(crewKey);
+    } else {
+      newExpanded.add(crewKey);
+    }
+    setExpandedCrews(newExpanded);
+  };
+  const toggleLiteAgentExpanded = (liteAgentKey) => {
+    const newExpanded = new Set(expandedLiteAgents);
+    if (newExpanded.has(liteAgentKey)) {
+      newExpanded.delete(liteAgentKey);
+    } else {
+      newExpanded.add(liteAgentKey);
+    }
+    setExpandedLiteAgents(newExpanded);
+  };
+  const toggleAgentExpanded = (agentKey) => {
+    const newExpanded = new Set(expandedAgents);
+    if (newExpanded.has(agentKey)) {
+      newExpanded.delete(agentKey);
+    } else {
+      newExpanded.add(agentKey);
+    }
+    setExpandedAgents(newExpanded);
+  };
+  const toggleTaskExpanded = (taskKey) => {
+    const newExpanded = new Set(expandedTasks);
+    if (newExpanded.has(taskKey)) {
+      newExpanded.delete(taskKey);
+    } else {
+      newExpanded.add(taskKey);
+    }
+    setExpandedTasks(newExpanded);
+  };
+  const status = flowGroup.status;
+  const statusColor = status === "running" ? "text-indigo-500" : status === "completed" ? "text-green-500" : "text-gray-300";
+  return /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "border border-gray-200 mb-3", children: [
+    /* @__PURE__ */ jsxRuntimeExports.jsx(
+      "div",
+      {
+        className: "p-2.5 bg-gray-50 cursor-pointer flex items-center\n                   justify-between hover:bg-gray-100 transition-colors",
+        onClick: onToggleExpanded,
+        children: /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center gap-2.5", children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-xs text-gray-400 w-3 text-center", children: isExpanded ? "▼" : "▶" }),
+          /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center gap-2", children: [
+            /* @__PURE__ */ jsxRuntimeExports.jsx(Zap, { className: `w-4 h-4 ${statusColor}` }),
+            /* @__PURE__ */ jsxRuntimeExports.jsx("div", { children: /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "text-xs font-medium text-gray-900", children: flowGroup.flowName }) })
+          ] })
+        ] })
+      }
+    ),
+    isExpanded && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "pt-1 pb-1", children: [
+      flowGroup.methods.map((methodGroup) => /* @__PURE__ */ jsxRuntimeExports.jsx(
+        MethodSection,
+        {
+          methodGroup,
+          selectedEvent,
+          onEventSelect,
+          isExpanded: expandedMethods.has(methodGroup.methodName),
+          onToggleExpanded: () => toggleMethodExpanded(methodGroup.methodName),
+          executionStartTime,
+          expandedCrews,
+          onToggleCrewExpanded: toggleCrewExpanded,
+          expandedLiteAgents,
+          onToggleLiteAgentExpanded: toggleLiteAgentExpanded,
+          expandedAgents,
+          onToggleAgentExpanded: toggleAgentExpanded,
+          expandedTasks,
+          onToggleTaskExpanded: toggleTaskExpanded
+        },
+        methodGroup.methodName
+      )),
+      flowGroup.events.filter(eventFilter).filter((event) => !event.data.payload.method_name).map((event, index) => {
+        if (event.type === "flow_finished") {
+          return /* @__PURE__ */ jsxRuntimeExports.jsx(
+            "div",
+            {
+              className: `cursor-pointer transition-colors p-1.5 rounded text-xs ml-4 ${selectedEvent === event ? "bg-green-100 border border-green-300" : "bg-green-50 border border-green-100 hover:bg-green-100"}`,
+              onClick: () => onEventSelect(event),
+              children: /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center justify-between", children: [
+                /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center gap-1", children: [
+                  /* @__PURE__ */ jsxRuntimeExports.jsx(CircleCheck, { className: "w-2.5 h-2.5 text-green-500" }),
+                  /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "font-medium text-green-700", children: "Flow Finished" })
+                ] }),
+                flowGroup.startTime && /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: "text-xs text-green-600", children: [
+                  "+",
+                  formatTimeOffset(
+                    flowGroup.startTime,
+                    event.timestamp
+                  )
+                ] })
+              ] })
+            },
+            `${event.timestamp}-${index}`
+          );
+        }
+        return /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "ml-4", children: /* @__PURE__ */ jsxRuntimeExports.jsx(
+          DynamicEventItem,
+          {
+            event,
+            isSelected: selectedEvent === event,
+            onClick: () => onEventSelect(event),
+            baseTime: flowGroup.startTime,
+            indent: 1
+          }
+        ) }, `${event.timestamp}-${index}`);
+      })
+    ] })
+  ] });
+};
+const EventDetails = ({ event }) => {
+  if (!event) {
+    return /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "flex items-center justify-center h-full text-gray-500", children: /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "text-center", children: /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "text-xs", children: "Select an event to view details" }) }) });
+  }
+  return /* @__PURE__ */ jsxRuntimeExports.jsx(DynamicContentRenderer, { event });
+};
+const InitialGuidanceTrigger = () => {
+  const { triggerInitialGuidance } = useTraceGuidance();
+  reactExports.useEffect(() => {
+    const timer = setTimeout(() => {
+      triggerInitialGuidance();
+    }, 0);
+    return () => clearTimeout(timer);
+  }, [triggerInitialGuidance]);
+  return null;
+};
+const FlowRun = ({
+  useEventsHook,
+  enableGuidance = false,
+  isEphemeralTrace = false
+}) => {
+  const { events, isRunning } = useEventsHook();
+  const [selectedEvent, setSelectedEvent] = reactExports.useState(null);
+  const [expandedFlows, setExpandedFlows] = reactExports.useState(/* @__PURE__ */ new Set());
+  const [userHasInteracted, setUserHasInteracted] = reactExports.useState(false);
+  const previousEventCount = reactExports.useRef(0);
+  const { triggerGuidance } = useTraceGuidance();
+  const eventsContainerRef = reactExports.useRef(null);
+  const { scrollToBottom } = useScrollToBottom(
+    eventsContainerRef,
+    {
+      dependencies: [],
+      scrollOnMount: true
+    }
+  );
+  reactExports.useEffect(() => {
+    if (events.length > previousEventCount.current && !userHasInteracted) {
+      scrollToBottom();
+    }
+    previousEventCount.current = events.length;
+  }, [events.length, scrollToBottom, userHasInteracted]);
+  const { flowGroups, executionStartTime } = reactExports.useMemo(() => {
+    const aggregatedEvents = aggregateEvents(events);
+    const flows = transformFlowEvents(aggregatedEvents);
+    const eventsInFlows = /* @__PURE__ */ new Set();
+    flows.forEach((flowGroup) => {
+      flowGroup.events.forEach((event) => eventsInFlows.add(event.timestamp));
+      flowGroup.methods.forEach((methodGroup) => {
+        methodGroup.events.forEach(
+          (event) => eventsInFlows.add(event.timestamp)
+        );
+        methodGroup.crews.forEach((crewGroup) => {
+          crewGroup.events.forEach(
+            (event) => eventsInFlows.add(event.timestamp)
+          );
+        });
+        methodGroup.liteAgents.forEach((liteAgentGroup) => {
+          liteAgentGroup.events.forEach(
+            (event) => eventsInFlows.add(event.timestamp)
+          );
+        });
+      });
+    });
+    const globalEventsArray = [];
+    let startTime;
+    aggregatedEvents.forEach((event) => {
+      if (!startTime) startTime = event.timestamp;
+      if (!eventsInFlows.has(event.timestamp)) {
+        globalEventsArray.push(event);
+      }
+    });
+    return {
+      flowGroups: flows,
+      globalEvents: { events: globalEventsArray },
+      executionStartTime: startTime
+    };
+  }, [events]);
+  reactExports.useEffect(() => {
+    if (isEphemeralTrace && flowGroups.length > 0) {
+      const allFlowNames = new Set(flowGroups.map((flow) => flow.flowName));
+      setExpandedFlows(allFlowNames);
+    }
+  }, [flowGroups, isEphemeralTrace]);
+  reactExports.useEffect(() => {
+    if (events.length > 0 && !selectedEvent) {
+      setSelectedEvent(events[events.length - 1]);
+    }
+  }, [events, selectedEvent]);
+  const handleEventSelect = (event) => {
+    triggerGuidance();
+    setSelectedEvent(event);
+    setUserHasInteracted(true);
+  };
+  const toggleFlowExpanded = (flowName) => {
+    triggerGuidance();
+    const newExpanded = new Set(expandedFlows);
+    if (newExpanded.has(flowName)) {
+      newExpanded.delete(flowName);
+    } else {
+      newExpanded.add(flowName);
+    }
+    setExpandedFlows(newExpanded);
+    setUserHasInteracted(true);
+  };
+  const content = /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex flex-col h-full", id: "trace-layout", children: [
+    /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "p-2 border-b flex items-center justify-between", children: /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center gap-2", children: [
+      /* @__PURE__ */ jsxRuntimeExports.jsx("h2", { className: "text-lg font-medium text-gray-900", children: "Events" }),
+      isRunning && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center gap-1.5", children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsx(LoaderCircle, { className: "w-4 h-4 animate-spin text-blue-500" }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-sm text-blue-600", children: "Running" })
+      ] })
+    ] }) }),
+    /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex-1 flex min-h-0", children: [
+      /* @__PURE__ */ jsxRuntimeExports.jsxs(
+        "div",
+        {
+          className: "w-1/2 border-r border-l border-gray-200 flex flex-col",
+          id: "timeline-container",
+          children: [
+            /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "p-2.5 border-b bg-gray-50", children: /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center gap-1.5", children: [
+              /* @__PURE__ */ jsxRuntimeExports.jsx(Clock, { className: "w-3 h-3 text-gray-500" }),
+              /* @__PURE__ */ jsxRuntimeExports.jsx("h3", { className: "text-xs font-medium text-gray-700", children: "Flow Timeline" })
+            ] }) }),
+            /* @__PURE__ */ jsxRuntimeExports.jsxs(
+              "div",
+              {
+                ref: eventsContainerRef,
+                className: "flex-1 overflow-y-auto p-1.5 pl-0",
+                children: [
+                  flowGroups.map((flowGroup) => /* @__PURE__ */ jsxRuntimeExports.jsx(
+                    FlowTimeline,
+                    {
+                      flowGroup,
+                      selectedEvent,
+                      onEventSelect: handleEventSelect,
+                      isExpanded: expandedFlows.has(flowGroup.flowName),
+                      onToggleExpanded: () => toggleFlowExpanded(flowGroup.flowName),
+                      executionStartTime,
+                      isEphemeralTrace
+                    },
+                    flowGroup.flowName
+                  )),
+                  events.length === 0 && /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "text-center text-gray-500 py-6 text-xs", children: isRunning ? /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex flex-col items-center gap-2", children: [
+                    /* @__PURE__ */ jsxRuntimeExports.jsx(LoaderCircle, { className: "w-5 h-5 animate-spin text-primary-color" }),
+                    /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: "Loading events..." })
+                  ] }) : /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex flex-col items-center gap-2", children: [
+                    /* @__PURE__ */ jsxRuntimeExports.jsx(LoaderCircle, { className: "w-5 h-5 animate-spin text-primary-color" }),
+                    /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: "Waiting for events to load..." })
+                  ] }) })
+                ]
+              }
+            )
+          ]
+        }
+      ),
+      /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "w-1/2 flex flex-col details-container", children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "p-2.5 border-b border-r bg-gray-50", children: /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center gap-1.5", children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsx(FileText, { className: "w-3 h-3 text-gray-500" }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx("h3", { className: "text-xs font-medium text-gray-700", children: "Event details" })
+        ] }) }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "flex-1 min-h-0", children: /* @__PURE__ */ jsxRuntimeExports.jsx(EventDetails, { event: selectedEvent }) })
+      ] })
+    ] })
+  ] });
+  return enableGuidance ? /* @__PURE__ */ jsxRuntimeExports.jsxs(TraceGuidanceProvider, { children: [
+    /* @__PURE__ */ jsxRuntimeExports.jsx(InitialGuidanceTrigger, {}),
+    content
+  ] }) : content;
+};
+const BatchedRunEventsContext = reactExports.createContext(
+  void 0
+);
+const BatchedRunEventsProvider = ({
+  children
+}) => {
+  const [events, setEvents] = reactExports.useState([]);
+  const [error, setError] = reactExports.useState(null);
+  const [executionType, setExecutionType] = reactExports.useState(
+    void 0
+  );
+  const traceId = reactExports.useMemo(() => {
+    const pathSegments = window.location.pathname.split("/");
+    return pathSegments[3];
+  }, [window.location.pathname]);
+  const isDeployment = reactExports.useMemo(() => {
+    if (window.location.pathname.includes("deployment")) {
+      return true;
+    }
+    return false;
+  }, [window.location.pathname]);
+  const executionId = reactExports.useMemo(() => {
+    const pathSegments = window.location.pathname.split("/");
+    return pathSegments[5];
+  }, [window.location.pathname]);
+  const fetchTraceData = reactExports.useCallback(async () => {
+    try {
+      const url = isDeployment ? `/crewai_plus/api/v1/tracing/batches/by_execution/${executionId}` : `/crewai_plus/api/v1/tracing/batches/${traceId}`;
+      const response = await fetch(url, {
+        headers: {
+          Accept: "application/json"
+        },
+        credentials: "include"
+      });
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      const data = await response.json();
+      setExecutionType(data.trace_batch.execution_type);
+      const transformedEvents = data.trace_events.map(
+        (traceEvent) => ({
+          // eslint-disable-line @typescript-eslint/no-explicit-any
+          type: traceEvent.event_type,
+          data: {
+            payload: traceEvent.event_data || {}
+          },
+          timestamp: traceEvent.timestamp
+        })
+      );
+      setEvents(transformedEvents);
+    } catch (error2) {
+      setError(
+        error2 instanceof Error ? error2.message : "An unknown error occurred"
+      );
+    }
+  }, [traceId, executionId, isDeployment]);
+  reactExports.useEffect(() => {
+    if (!traceId) {
+      setError("No trace ID found in URL");
+      return;
+    }
+    setError(null);
+    fetchTraceData();
+  }, [fetchTraceData]);
+  const clearEvents = () => {
+    setEvents([]);
+    setError(null);
+  };
+  return /* @__PURE__ */ jsxRuntimeExports.jsx(
+    BatchedRunEventsContext.Provider,
+    {
+      value: {
+        events,
+        clearEvents,
+        isRunning: false,
+        error,
+        executionType
+      },
+      children
+    }
+  );
+};
+const useBatchedRunEvents = () => {
+  const context = reactExports.useContext(BatchedRunEventsContext);
+  if (context === void 0) {
+    throw new Error(
+      "useBatchedRunEvents must be used within a BatchedRunEventsProvider"
+    );
+  }
+  return context;
+};
+const EphemeralRunEventsContext = reactExports.createContext(void 0);
+const EphemeralRunEventsProvider = ({
+  children
+}) => {
+  const [events, setEvents] = reactExports.useState([]);
+  const [error, setError] = reactExports.useState(null);
+  const [executionType, setExecutionType] = reactExports.useState(
+    void 0
+  );
+  const traceId = reactExports.useMemo(() => {
+    const pathSegments = window.location.pathname.split("/");
+    return pathSegments[3];
+  }, [window.location.pathname]);
+  reactExports.useEffect(() => {
+    if (!traceId) {
+      setError("No trace ID found in URL");
+      return;
+    }
+    setError(null);
+    fetch(`/crewai_plus/api/v1/tracing/ephemeral/batches/${traceId}`, {
+      headers: {
+        Accept: "application/json"
+      }
+    }).then((response) => {
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      return response.json();
+    }).then((data) => {
+      setExecutionType(data.trace_batch.execution_type);
+      let transformedEvents = [];
+      if (data.trace_batch.execution_type === "crew") {
+        transformedEvents = data.trace_events.map((traceEvent) => ({
+          // eslint-disable-line @typescript-eslint/no-explicit-any
+          type: traceEvent.event_type,
+          data: {
+            payload: traceEvent.event_data || {}
+          },
+          timestamp: traceEvent.timestamp
+        }));
+      } else {
+        transformedEvents = data.trace_events.map((traceEvent) => ({
+          // eslint-disable-line @typescript-eslint/no-explicit-any
+          type: traceEvent.event_type,
+          data: {
+            payload: traceEvent.event_data || {}
+          },
+          timestamp: traceEvent.timestamp
+        }));
+      }
+      setEvents(transformedEvents);
+    }).catch((error2) => {
+      setError(error2.message);
+    });
+  }, [traceId]);
+  const clearEvents = () => {
+    setEvents([]);
+    setError(null);
+  };
+  return /* @__PURE__ */ jsxRuntimeExports.jsx(
+    EphemeralRunEventsContext.Provider,
+    {
+      value: {
+        events,
+        clearEvents,
+        isRunning: false,
+        error,
+        executionType
+      },
+      children
+    }
+  );
+};
+const useEphemeralRunEvents = () => {
+  const context = reactExports.useContext(EphemeralRunEventsContext);
+  if (context === void 0) {
+    throw new Error(
+      "useEphemeralRunEvents must be used within a EphemeralRunEventsProvider"
+    );
+  }
+  return context;
+};
+const ExecutionRenderer = () => {
+  const { executionType } = useBatchedRunEvents();
+  if (executionType === "flow") {
+    return /* @__PURE__ */ jsxRuntimeExports.jsx(FlowRun, { useEventsHook: useBatchedRunEvents });
+  }
+  return /* @__PURE__ */ jsxRuntimeExports.jsx(Run, { useEventsHook: useBatchedRunEvents });
+};
+const EphemeralExecutionRenderer = () => {
+  const { executionType } = useEphemeralRunEvents();
+  if (executionType === "flow") {
+    return /* @__PURE__ */ jsxRuntimeExports.jsx(
+      FlowRun,
+      {
+        useEventsHook: useEphemeralRunEvents,
+        enableGuidance: true,
+        isEphemeralTrace: true
+      }
+    );
+  }
+  return /* @__PURE__ */ jsxRuntimeExports.jsx(
+    Run,
+    {
+      useEventsHook: useEphemeralRunEvents,
+      enableGuidance: true,
+      isEphemeralTrace: true
+    }
+  );
+};
+const Traces = () => {
+  return /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex flex-col min-h-screen bg-background", children: [
+    /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "w-full px-0", children: /* @__PURE__ */ jsxRuntimeExports.jsx(BatchedRunEventsProvider, { children: /* @__PURE__ */ jsxRuntimeExports.jsx(ExecutionRenderer, {}) }) }),
+    /* @__PURE__ */ jsxRuntimeExports.jsx(Toaster, {})
+  ] });
+};
+const EphemeralTraces = () => {
+  return /* @__PURE__ */ jsxRuntimeExports.jsx(
+    MultipleSidebarsProvider,
+    {
+      leftSidebarWidth: "0rem",
+      rightSidebarWidth: "0rem",
+      mobileWidth: "0rem",
+      children: /* @__PURE__ */ jsxRuntimeExports.jsxs(GuidanceProvider, { children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "flex flex-col min-h-screen w-full bg-background", children: /* @__PURE__ */ jsxRuntimeExports.jsx(EphemeralRunEventsProvider, { children: /* @__PURE__ */ jsxRuntimeExports.jsx(EphemeralExecutionRenderer, {}) }) }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx(Toaster, {}),
+        /* @__PURE__ */ jsxRuntimeExports.jsx(GuidanceOverlay, {})
+      ] })
+    }
+  );
+};
+class ReactMountManager {
+  constructor() {
+    __publicField(this, "containers", /* @__PURE__ */ new Map());
+  }
+  mount(containerId, component) {
+    const container = document.getElementById(
+      containerId
+    );
+    if (!container) return;
+    if (!container._reactRoot) {
+      container._reactRoot = createRoot(container);
+    }
+    container._reactRoot.render(
+      /* @__PURE__ */ jsxRuntimeExports.jsx(React.StrictMode, { children: component })
+    );
+    this.containers.set(containerId, container);
+  }
+  unmount(containerId) {
+    const container = this.containers.get(containerId);
+    if (container == null ? void 0 : container._reactRoot) {
+      container._reactRoot.unmount();
+      container._reactRoot = void 0;
+    }
+    this.containers.delete(containerId);
+  }
+  unmountAll() {
+    this.containers.forEach((_, containerId) => this.unmount(containerId));
+  }
+}
+const mountManager = new ReactMountManager();
+const initializeTraces = () => {
+  mountManager.mount("traces-container", /* @__PURE__ */ jsxRuntimeExports.jsx(Traces, {}));
+  mountManager.mount("ephemeral-traces-container", /* @__PURE__ */ jsxRuntimeExports.jsx(EphemeralTraces, {}));
+};
+const cleanupTraces = () => {
+  mountManager.unmountAll();
+};
+initializeTraces();
+document.addEventListener("turbo:load", initializeTraces);
+document.addEventListener("turbo:before-visit", cleanupTraces);
+window.addEventListener("beforeunload", cleanupTraces);
+//# sourceMappingURL=traces-Cqar3KhC.js.map

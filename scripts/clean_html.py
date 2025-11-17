@@ -85,6 +85,8 @@ def process_batch(input_dir, output_dir):
     """
     Procesa todos los archivos HTML de un directorio
     """
+    import shutil
+
     input_path = Path(input_dir)
     output_path = Path(output_dir)
 
@@ -102,6 +104,7 @@ def process_batch(input_dir, output_dir):
     print("="*60)
 
     # Procesar cada archivo
+    files_copied = 0
     for html_file in html_files:
         # Mantener estructura de subdirectorios
         relative_path = html_file.relative_to(input_path)
@@ -113,8 +116,23 @@ def process_batch(input_dir, output_dir):
         # Limpiar el archivo
         clean_html_file(str(html_file), str(output_file))
 
+        # Copiar carpeta de archivos externos si existe (ej: pagina_files/)
+        # Esto es para páginas guardadas con "Save Complete Webpage"
+        external_folder_name = html_file.stem + '_files'
+        external_folder = html_file.parent / external_folder_name
+
+        if external_folder.exists() and external_folder.is_dir():
+            output_external_folder = output_path / external_folder_name
+            if output_external_folder.exists():
+                shutil.rmtree(output_external_folder)
+            shutil.copytree(external_folder, output_external_folder)
+            print(f"  ✓ Copiada carpeta de archivos externos: {external_folder_name}")
+            files_copied += 1
+
     print("="*60)
     print(f"✓ Proceso completado. {len(html_files)} archivos limpiados.")
+    if files_copied > 0:
+        print(f"✓ {files_copied} carpetas de archivos externos copiadas.")
 
 if __name__ == "__main__":
     # Directorios por defecto
